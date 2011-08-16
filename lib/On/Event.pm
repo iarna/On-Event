@@ -63,7 +63,7 @@ sub import {
     my( $pkg ) = caller;
     foreach my $module ( @_[1..$#_] ) {
         my $class = "On::Event::$module"; ;
-        eval qq{ use $class; };
+        eval qq{ package $pkg; use $class; };
         die $@ if $@;
     }
     no strict 'refs';
@@ -71,6 +71,20 @@ sub import {
     *{$pkg."::has_events"} = \&has_event;
     *{$pkg."::_valid_events"} = {};
 }
+
+=begin internal
+
+=over
+
+=item our sub unimport
+
+This is used to clean up the functions we insert into the caller's namespace.
+
+=back
+
+=end internal
+
+=cut
 
 sub unimport {
     my( $pkg ) = caller;
@@ -81,13 +95,17 @@ sub unimport {
 
 =head1 HELPERS (exported subroutines)
 
-sub has_event( Array[Str] @event_names ) is export
+=over
 
-sub has_events( Array[Str] @event_names ) is export
+=item sub has_event( Array[Str] *@event_names ) is export
+
+=item sub has_events( Array[Str] *@event_names ) is export
 
 =over
 
 Registers your class as being able to trigger the event names listed.
+
+=back
 
 =back
 
@@ -102,7 +120,9 @@ sub has_event(@) {
 
 =head1 METHODS
 
-method event_exists( Str $event ) returns Bool
+=over
+
+=item our method event_exists( Str $event ) returns Bool
 
 =over
 
@@ -121,12 +141,14 @@ sub event_exists {
 
 =pod
 
-method on( Str $event, Code $listener )
+=item our method on( Str $event, Code $listener ) returns Code
 
 =over
 
 Registers $listener as a listener on $event.  When $event is triggered ALL
 registered listeners are executed.
+
+Returns the listener coderef.
 
 =back
 
@@ -140,11 +162,12 @@ sub on {
     }
     $self->{_listeners}{$event} //= [];
     push @{ $self->{_listeners}{$event} }, $listener;
+    return $listener;
 }
 
 =pod
 
-method trigger( Str $event, @args )
+=item our method trigger( Str $event, Array[Any] *@args )
 
 =over
 
@@ -170,6 +193,21 @@ sub trigger {
     }
 }
 
+=begin internal
+
+=item my method trigger_stock( Str $event, Array[Any] *@args )
+
+=over
+
+The standard impelementation of the trigger method-- calls the listeners
+immediately and in the order they were defined.
+
+=back
+
+=end internal
+
+=cut
+
 sub trigger_stock {
     my $self = shift;
     my( $event, @args ) = @_;
@@ -182,6 +220,22 @@ sub trigger_stock {
     }
     return;
 }
+
+=begin internal
+
+=item my method trigger_coro( Str $event, Array[Any] *@args )
+
+=over
+
+The L<Coro> implementation of the trigger method-- calls each of the listeners
+in its own thread and triggers immediate execution by calling cede before
+returning.
+
+=back
+
+=end internal
+
+=cut
 
 sub trigger_coro {
     my $self = shift;
@@ -199,9 +253,13 @@ sub trigger_coro {
 
 =pod
 
-method remove_all_listeners( Str $event )
+=item our method remove_all_listeners( Str $event )
 
 =over
+
+Removes all listeners for $event
+
+=back
 
 =back
 

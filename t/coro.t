@@ -4,11 +4,17 @@ use Coro;
 use Coro::Timer qw( sleep );
 use Test::More tests => 2;
 
-BEGIN { package TestEvent;
-  use On::Event;
-  use Any::Moose;
-  with 'On::Event';
-  has_event 'ping';
+BEGIN {
+    package TestEvent;
+    use On::Event;
+    use Any::Moose;
+
+    with 'On::Event';
+
+    has_event 'ping';
+
+    no On::Event; 
+    no Any::Moose;
 }
 
 my $te = TestEvent->new;

@@ -1,8 +1,6 @@
+package On::Event;
+# ABSTRACT: Flexible event handling over the power of AnyEvent
 =pod
-
-=head1 NAME
-
-On::Event -- Flexible event handling over the power of AnyEvent
 
 =head1 SYNOPSIS
 
@@ -49,14 +47,17 @@ You can trigger events from your class with the "trigger" method:
 
   $self->trigger( "event1", "arg1", "arg2", "argn" );
 
+You can remove the has_event and has_events helpers by unimporting On::Event:
+
+  no On::Event;
+
 =cut
-package On::Event;
 use strict;
 use warnings;
 use Any::Moose 'Role';
 
 has 'autoload' => (isa=>'Bool', is=>'rw', default=>1);
-has '_events' => (isa=>'HashRef', is=>'ro', default=>sub{{}});
+has '_listeners' => (isa=>'HashRef', is=>'ro', default=>sub{{}});
 
 sub import {
     my( $pkg ) = caller;
@@ -73,15 +74,16 @@ sub import {
 
 sub unimport {
     my( $pkg ) = caller;
+    no strict 'refs';
     delete ${$pkg."::"}{"has_event"};
     delete ${$pkg."::"}{"has_events"};
 }
 
-=head1 HELPERS
+=head1 HELPERS (exported subroutines)
 
-sub has_event( Array[Str] @event_names )
+sub has_event( Array[Str] @event_names ) is export
 
-sub has_events( Array[Str] @event_names )
+sub has_events( Array[Str] @event_names ) is export
 
 =over
 
@@ -104,7 +106,7 @@ method event_exists( Str $event ) returns Bool
 
 =over
 
-
+Returns true if $event is a valid event name for this class.
 
 =back
 
@@ -117,25 +119,53 @@ sub event_exists {
     return exists ${ref($self)."::_valid_events"}{$event};
 }
 
+=pod
+
+method on( Str $event, Code $listener )
+
+=over
+
+Registers $listener as a listener on $event.  When $event is triggered ALL
+registered listeners are executed.
+
+=back
+
+=cut
+
 sub on {
     my $self = shift;
-    my( $event, $action ) = @_;
+    my( $event, $listener ) = @_;
     if ( ! $self->event_exists($event) ) {
         die "Event $event does not exist";
     }
-    $self->{_events}{$event} //= [];
-    push @{ $self->{_events}{$event} }, $action;
+    $self->{_listeners}{$event} //= [];
+    push @{ $self->{_listeners}{$event} }, $listener;
 }
 
+=pod
+
+method trigger( Str $event, @args )
+
+=over
+
+Normally called within the class using the On::Event role.  This calls all
+of the registered listeners on $event with @args.
+
+If you're using coroutines then each listener will get its own thread and
+trigger will cede before returning.
+
+=back
+
+=cut
+
 sub trigger {
-    no strict 'refs';
-    no warnings;
-    if ( defined *{"Coro::async"}{CODE} ) {
-        *{trigger} = \&trigger_coro;
+    no warnings 'redefine';
+    if ( defined *Coro::async{CODE} ) {
+        *trigger = \&trigger_coro;
         goto \&trigger_coro;
     }
     else {
-        *{trigger} = \&trigger_stock;
+        *trigger = \&trigger_stock;
         goto \&trigger_stock;
     }
 }
@@ -146,8 +176,8 @@ sub trigger_stock {
     if ( ! $self->event_exists($event) ) {
         die "Event $event does not exist";
     }
-    return unless exists $self->{_events}{$event};
-    foreach ( @{ $self->{_events}{$event} } ) {
+    return unless exists $self->{_listeners}{$event};
+    foreach ( @{ $self->{_listeners}{$event} } ) {
         $_->(@args);
     }
     return;
@@ -159,21 +189,30 @@ sub trigger_coro {
     if ( ! $self->event_exists($event) ) {
         die "Event $event does not exist";
     }
-    return unless exists $self->{_events}{$event};
-    foreach ( @{ $self->{_events}{$event} } ) {
+    return unless exists $self->{_listeners}{$event};
+    foreach ( @{ $self->{_listeners}{$event} } ) {
         &Coro::async( $_, @args );
     }
     Coro::cede();
     return;
 }
 
+=pod
+
+method remove_all_listeners( Str $event )
+
+=over
+
+=back
+
+=cut
+
+
 sub remove_all_listeners {
     my $self = shift;
     my( $event ) = @_;
-    delete $self->{_events}{$event};
+    delete $self->{_listeners}{$event};
 }
-
 
 no Any::Moose;
 1;
-

@@ -1,0 +1,15 @@
+Change:
+  Stop the PURE crazy-- right now listeners are global to the class.  They
+  should be an instance var.  This makes all kinds of things simpler.
+  remove_all_listeners -- event name is optional, with none clear ALL listeners
+  trigger -- rename to emit
+On::Event needs:
+  our method once( Str event, CodeRef listener ) returns CodeRef
+  
+  our method remove_listener( Str Event, CodeRef listener )
+
+  our method listeners( Str Event ) ?
+     Dubious API here, but possibly return the array of listeners for this event
+
+  Add event: new_listener
+  Triggered whenever someone adds a new listener

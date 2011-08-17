@@ -1,7 +1,5 @@
 package On::Event;
 # ABSTRACT: Flexible event handling over the power of AnyEvent
-=pod
-
 =head1 SYNOPSIS
 
   package Example;
@@ -52,6 +50,7 @@ You can remove the has_event and has_events helpers by unimporting On::Event:
   no On::Event;
 
 =cut
+
 use strict;
 use warnings;
 use Any::Moose 'Role';
@@ -101,11 +100,7 @@ sub unimport {
 
 =item sub has_events( Array[Str] *@event_names ) is export
 
-=over
-
 Registers your class as being able to trigger the event names listed.
-
-=back
 
 =back
 
@@ -124,11 +119,7 @@ sub has_event(@) {
 
 =item our method event_exists( Str $event ) returns Bool
 
-=over
-
 Returns true if $event is a valid event name for this class.
-
-=back
 
 =cut
 
@@ -139,18 +130,12 @@ sub event_exists {
     return exists ${ref($self)."::_valid_events"}{$event};
 }
 
-=pod
-
-=item our method on( Str $event, Code $listener ) returns Code
-
-=over
+=item our method on( Str $event, CodeRef $listener ) returns CodeRef
 
 Registers $listener as a listener on $event.  When $event is triggered ALL
 registered listeners are executed.
 
 Returns the listener coderef.
-
-=back
 
 =cut
 
@@ -165,19 +150,13 @@ sub on {
     return $listener;
 }
 
-=pod
-
 =item our method trigger( Str $event, Array[Any] *@args )
-
-=over
 
 Normally called within the class using the On::Event role.  This calls all
 of the registered listeners on $event with @args.
 
 If you're using coroutines then each listener will get its own thread and
 trigger will cede before returning.
-
-=back
 
 =cut
 
@@ -197,12 +176,8 @@ sub trigger {
 
 =item my method trigger_stock( Str $event, Array[Any] *@args )
 
-=over
-
 The standard impelementation of the trigger method-- calls the listeners
 immediately and in the order they were defined.
-
-=back
 
 =end internal
 
@@ -225,13 +200,9 @@ sub trigger_stock {
 
 =item my method trigger_coro( Str $event, Array[Any] *@args )
 
-=over
-
 The L<Coro> implementation of the trigger method-- calls each of the listeners
 in its own thread and triggers immediate execution by calling cede before
 returning.
-
-=back
 
 =end internal
 
@@ -251,17 +222,10 @@ sub trigger_coro {
     return;
 }
 
-=pod
 
 =item our method remove_all_listeners( Str $event )
 
-=over
-
 Removes all listeners for $event
-
-=back
-
-=back
 
 =cut
 
@@ -271,6 +235,11 @@ sub remove_all_listeners {
     my( $event ) = @_;
     delete $self->{_listeners}{$event};
 }
+
+=back
+
+=cut
+
 
 no Any::Moose;
 1;

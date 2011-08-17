@@ -15,6 +15,9 @@ package On::Event;
   $example->trigger( "ping" ); # prints "Got a ping!" and "Got another ping!"
   $example->remove_all_listeners( 'ping' );
 
+=for test_synopsis
+use v5.10;
+
 =head1 DESCRIPTION
 
 This provides a simple and flexible event API, implemented on top of
@@ -60,15 +63,19 @@ has '_listeners' => (isa=>'HashRef', is=>'ro', default=>sub{{}});
 
 sub import {
     my( $pkg ) = caller;
-    foreach my $module ( @_[1..$#_] ) {
-        my $class = "On::Event::$module"; ;
-        eval qq{ package $pkg; use $class; };
-        die $@ if $@;
+    if ( @_ > 1 ) {
+        my $class = "On::Event::$_[1]"; ;
+        eval qq{ require $class; }; ## no critic (ProhibitStringyEval)
+        Carp::croak $@ if $@;
+        eval qq{ package $pkg; \$class->import(\@_[2..$#_]); };## no critic (ProhibitStringyEval)
+        Carp::croak $@ if $@;
     }
-    no strict 'refs';
-    *{$pkg."::has_event"} = \&has_event;
-    *{$pkg."::has_events"} = \&has_event;
-    *{$pkg."::_valid_events"} = {};
+    no strict 'refs'; ## no critic (ProhibitNoStrict)
+    unless (exists ${"$pkg\::"}{"_valid_events"}) {
+        *{$pkg."::_valid_events"} = {};
+        *{$pkg."::has_event"} = \&has_event;
+        *{$pkg."::has_events"} = \&has_event;
+    }
 }
 
 =begin internal
@@ -87,7 +94,7 @@ This is used to clean up the functions we insert into the caller's namespace.
 
 sub unimport {
     my( $pkg ) = caller;
-    no strict 'refs';
+    no strict 'refs'; ## no critic (ProhibitNoStrict)
     delete ${$pkg."::"}{"has_event"};
     delete ${$pkg."::"}{"has_events"};
 }
@@ -106,11 +113,13 @@ Registers your class as being able to trigger the event names listed.
 
 =cut
 
-sub has_event(@) {
+sub has_event(@) { ## no critic (ProhibitSubroutinePrototypes)
     my( $pkg ) = caller;
-    no strict 'refs';
-    my $valid = \%{$pkg."::_valid_events"};
-    $valid->{$_}=1 for @_;
+    my $valid = do {
+        no strict 'refs'; ## no critic (ProhibitNoStrict)
+        \%{$pkg."::_valid_events"};
+        };
+    $valid->{$_}=1 for @_; ## no critic (ProhibitAccessOfPrivateData)
 }
 
 =head1 METHODS
@@ -126,7 +135,7 @@ Returns true if $event is a valid event name for this class.
 sub event_exists {
     my $self = shift;
     my( $event ) = @_;
-    no strict 'refs';
+    no strict 'refs'; ## no critic (ProhibitNoStrict)
     return exists ${ref($self)."::_valid_events"}{$event};
 }
 

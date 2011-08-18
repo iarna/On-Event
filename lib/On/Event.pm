@@ -60,6 +60,8 @@ use Any::Moose 'Role';
 
 has 'autoload' => (isa=>'Bool', is=>'rw', default=>1);
 has '_listeners' => (isa=>'HashRef', is=>'ro', default=>sub{{}});
+my %valid_events;
+has '_valid_events' => (isa=>'HashRef', is=>'ro', default=>sub{ $valid_events{ref shift} });
 
 sub import {
     my( $pkg ) = caller;
@@ -70,11 +72,13 @@ sub import {
         eval qq{ package $pkg; \$class->import(\@_[2..$#_]); };## no critic (ProhibitStringyEval)
         Carp::croak $@ if $@;
     }
-    no strict 'refs'; ## no critic (ProhibitNoStrict)
-    unless (exists ${"$pkg\::"}{"_valid_events"}) {
-        *{$pkg."::_valid_events"} = {};
-        *{$pkg."::has_event"} = \&has_event;
-        *{$pkg."::has_events"} = \&has_event;
+    else {
+        no strict 'refs'; ## no critic (ProhibitNoStrict)
+        $valid_events{$pkg} //= {};
+        unless (exists ${"$pkg\::"}{"has_event"}) {
+            *{$pkg."::has_event"} = \&has_event;
+            *{$pkg."::has_events"} = \&has_event;
+        }
     }
 }
 
@@ -115,11 +119,7 @@ Registers your class as being able to trigger the event names listed.
 
 sub has_event(@) { ## no critic (ProhibitSubroutinePrototypes)
     my( $pkg ) = caller;
-    my $valid = do {
-        no strict 'refs'; ## no critic (ProhibitNoStrict)
-        \%{$pkg."::_valid_events"};
-        };
-    $valid->{$_}=1 for @_; ## no critic (ProhibitAccessOfPrivateData)
+    $valid_events{$pkg}{$_} = 1 for @_; ## no critic (ProhibitAccessOfPrivateData)
 }
 
 =head1 METHODS
@@ -136,7 +136,7 @@ sub event_exists {
     my $self = shift;
     my( $event ) = @_;
     no strict 'refs'; ## no critic (ProhibitNoStrict)
-    return exists ${ref($self)."::_valid_events"}{$event};
+    return exists $self->_valid_events->{$event};
 }
 
 =item our method on( Str $event, CodeRef $listener ) returns CodeRef

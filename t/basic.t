@@ -26,4 +26,3 @@ $te->on( ping => sub {
     } );
 
 $te->trigger( "ping" );
-diag("Triggered");

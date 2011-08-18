@@ -1,8 +1,12 @@
 use strict;
 use warnings;
-use Coro;
-use Coro::Timer qw( sleep );
 use Test::More tests => 2;
+eval 'use Coro';
+if ( $@ ) {
+   skip( "Can't do Coro tests without Coro installed", 2);
+   exit;
+}
+use On::Event::Timer qw( sleep );
 
 BEGIN {
     package TestEvent;
@@ -28,4 +32,3 @@ $te->on( ping => sub {
     } );
 
 $te->trigger( "ping" );
-diag("Triggered");

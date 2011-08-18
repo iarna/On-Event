@@ -25,4 +25,4 @@ $te->on( ping => sub {
     pass( "Got second ping" );
     } );
 
-$te->trigger( "ping" );
+$te->emit( "ping" );

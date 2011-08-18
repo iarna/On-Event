@@ -1,11 +1,17 @@
 use strict;
 use warnings;
-use Test::More tests => 2;
+require Test::More;
+
 eval 'use Coro';
+
 if ( $@ ) {
-   skip( "Can't do Coro tests without Coro installed", 2);
-   exit;
+    Test::More->import( skip_all => "Can't do Coro tests without Coro installed" );
+    exit(0);
 }
+else  {
+    Test::More->import( tests => 2);
+}
+
 use On::Event::Timer qw( sleep );
 
 BEGIN {
@@ -31,4 +37,4 @@ $te->on( ping => sub {
     pass( "Got second ping" );
     } );
 
-$te->trigger( "ping" );
+$te->emit( "ping" );

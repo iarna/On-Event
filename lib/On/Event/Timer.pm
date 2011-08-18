@@ -62,7 +62,7 @@ sub import {
 
 =item our sub sleep( Rat $secs ) is export
 
-Sleep for $secs while allowing events to trigger (and Coroutine threads to run)
+Sleep for $secs while allowing events to emit (and Coroutine threads to run)
 
 =back
 
@@ -79,7 +79,7 @@ sub sleep {
 
 =item our sub sleep_until( Rat $epochtime ) is export
 
-Sleep until $upochtime while allowing events to trigger (and Coroutine threads to run)
+Sleep until $epochtime while allowing events to emit (and Coroutine threads to run)
 
 =back
 
@@ -147,7 +147,7 @@ sub every {
 
 =item our method new( :$in, :$interval? ) returns On::Event::Timer
 
-Creates a new timer object that will trigger it's "timeout" event after $in
+Creates a new timer object that will emit it's "timeout" event after $in
 seconds and every $interval seconds there after.
 
 =back
@@ -158,18 +158,18 @@ seconds and every $interval seconds there after.
 
 =item our method on( Str $event, CodeRef $listener ) returns CodeRef
 
-Registers $listener as a listener on $event.  When $event is triggered ALL
+Registers $listener as a listener on $event.  When $event is emitted ALL
 registered listeners are executed.
 
 Returns the listener coderef.
 
-=item our method trigger( Str $event, Array[Any] *@args )
+=item our method emit( Str $event, Array[Any] *@args )
 
 Normally called within the class using the On::Event role.  This calls all
 of the registered listeners on $event with @args.
 
 If you're using coroutines then each listener will get its own thread and
-trigger will cede before returning.
+emit will cede before returning.
 
 =item our method remove_all_listeners( Str $event )
 
@@ -194,10 +194,10 @@ sub start {
     my $cb;
     Scalar::Util::weaken($self) if $is_weak;
     if ( $self->interval ) {
-        $cb = sub { $self->trigger('timeout') };
+        $cb = sub { $self->emit('timeout') };
     }
     else {
-        $cb = sub { $self->cancel; $self->trigger('timeout'); }
+        $cb = sub { $self->cancel; $self->emit('timeout'); }
     }
     my $in;
     if ( ref $self->in ) {
@@ -207,7 +207,7 @@ sub start {
     else {
         $in = $self->in;
     }
-    my $w = AE::timer $in, $self->interval, sub { $self->trigger('timeout') };
+    my $w = AE::timer $in, $self->interval, sub { $self->emit('timeout') };
     $self->_guard( $w );
 }
 
@@ -215,7 +215,7 @@ sub start {
 
 Cancels a running timer. You can start the timer again by calling the start
 method.  For after and every timers, it begins waiting all over again. At timers will
-still trigger at the time you specified (or immediately if that time has passed).
+still emit at the time you specified (or immediately if that time has passed).
 
 =cut
 
@@ -236,7 +236,7 @@ sub cancel {
 
 =item timeout
 
-This event takes no arguments.  It's triggered when the event time completes.
+This event takes no arguments.  It's emitted when the event time completes.
 
 =back
 

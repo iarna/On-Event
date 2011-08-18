@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::More tests => 5;
 
-use On::Event Timer => qw( sleep sleep_until );
+use On::Event 'Timer=sleep,sleep_until';
 
 my $after_test;
 On::Event::Timer->after( .1, sub { $after_test ++ } );
@@ -15,11 +15,11 @@ my $every = On::Event::Timer->every( .3, sub { $every_test ++ });
 
 sleep(.7);
 
-is( $after_test, 1, "After event triggered" );
+is( $after_test, 1, "After event emitted" );
 
-is( $at_test, 1, "At event triggered" );
+is( $at_test, 1, "At event emited" );
 
-is( $every_test, 2, "Every test triggered twice" );
+is( $every_test, 2, "Every test emitted twice" );
 
 $every->cancel;
 

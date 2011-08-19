@@ -19,7 +19,7 @@ no Any::Moose;
 
 =head1 SYNOPSIS
 
-    use On::Event Timer => qw( sleep sleep_until );
+    use On::Event::Timer qw( sleep sleep_until );
     
     # After five seconds, say Hi
     On::Event::Timer->after( 5, sub { say "Hi!" } );

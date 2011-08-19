@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Test::More tests => 5;
 
-use On::Event 'Timer=sleep,sleep_until';
+use On::Event::Timer qw( sleep sleep_until );
 
 my $after_test;
 On::Event::Timer->after( .1, sub { $after_test ++ } );

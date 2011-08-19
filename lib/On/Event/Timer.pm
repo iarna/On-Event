@@ -9,7 +9,7 @@ use Scalar::Util;
 
 with 'On::Event';
 
-has 'in'    => (isa=>'Num|CodeRef', is=>'ro', default=>0);
+has 'delay'    => (isa=>'Num|CodeRef', is=>'ro', default=>0);
 has 'interval' => (isa=>'Num', is=>'ro', default=>0);
 has '_guard'   => (is=>'rw');
 has_event 'timeout';
@@ -107,7 +107,7 @@ value, it acts as a guard-- if it's destroyed then the timer is canceled.
 sub after {
     my $class = shift;
     my( $after, $on_timeout ) = @_;
-    my $self = $class->new( in=> $after );
+    my $self = $class->new( delay=> $after );
     $self->on( timeout => $on_timeout );
     $self->start( defined(wantarray) );
     return $self;
@@ -123,7 +123,7 @@ return value, it acts as a guard-- if it's destoryed then the timer is canceled.
 sub at {
     my $class = shift;
     my( $at, $on_timeout ) = @_;
-    my $self = $class->new( in=> sub {$at - AE::time}  );
+    my $self = $class->new( delay=> sub {$at - AE::time}  );
     $self->on( timeout => $on_timeout );
     $self->start( defined(wantarray) );
     return $self;
@@ -139,16 +139,17 @@ store the return value it acts as a guard-- if it's destroyed then the timer is 
 sub every {
     my $class = shift;
     my( $every, $on_timeout ) = @_;
-    my $self = $class->new( in => $every, interval => $every );
+    my $self = $class->new( delay => $every, interval => $every );
     $self->on( timeout => $on_timeout );
     $self->start( defined(wantarray) );
     return $self;
 }
 
-=item our method new( :$in, :$interval? ) returns On::Event::Timer
+=item our method new( :$delay, :$interval? ) returns On::Event::Timer
 
-Creates a new timer object that will emit it's "timeout" event after $in
-seconds and every $interval seconds there after.
+Creates a new timer object that will emit it's "timeout" event after $delay
+seconds and every $interval seconds there after.  Delay can be a code ref,
+in which case it's return value is the number of seconds to delay.
 
 =back
 
@@ -199,15 +200,15 @@ sub start {
     else {
         $cb = sub { $self->cancel; $self->emit('timeout'); }
     }
-    my $in;
-    if ( ref $self->in ) {
-        $in = $self->in->();
-        $in = 0 if $in < 0;
+    my $delay;
+    if ( ref $self->delay ) {
+        $delay = $self->delay->();
+        $delay = 0 if $delay < 0;
     }
     else {
-        $in = $self->in;
+        $delay = $self->delay;
     }
-    my $w = AE::timer $in, $self->interval, sub { $self->emit('timeout') };
+    my $w = AE::timer $delay, $self->interval, sub { $self->emit('timeout') };
     $self->_guard( $w );
 }
 
@@ -237,6 +238,16 @@ sub cancel {
 =item timeout
 
 This event takes no arguments.  It's emitted when the event time completes.
+
+=back
+
+=head1 SEE ALSO
+
+=over
+
+=item * L<AnyEvent>
+
+=item * L<http://nodejs.org/docs/v0.5.4/api/timers.html>
 
 =back
 

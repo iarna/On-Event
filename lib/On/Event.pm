@@ -187,7 +187,7 @@ sub once {
     }
     $self->{_listeners}{$event} ||= [];
     my $wrapped;
-    $wrapped = sub { $_[0]->remove_listener($wrapped); $wrapped=undef; goto $listener; };
+    $wrapped = sub { $_[0]->remove_listener($event=>$wrapped); $wrapped=undef; goto $listener; };
     $self->emit('new_listener', $event, $wrapped);
     push @{ $self->{_listeners}{$event} }, $wrapped;
     return $wrapped;
@@ -307,7 +307,7 @@ list will edit the listeners for this item.
 sub listeners {
     my $self = shift;
     my( $event ) = @_;
-    return $self->{_listeners}{$event} //= [];
+    return $self->{_listeners}{$event} ||= [];
 }
 
 

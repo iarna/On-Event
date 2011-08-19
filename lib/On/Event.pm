@@ -1,5 +1,5 @@
 package On::Event;
-# ABSTRACT: Flexible event handling over the power of AnyEvent
+# ABSTRACT: Flexible event handling built on the power of AnyEvent
 =head1 SYNOPSIS
 
   package Example;
@@ -313,11 +313,47 @@ sub listeners {
 
 =back
 
+=head1 WHAT THIS ISN'T
+
+This isn't an event loop, where one is needed, AnyEvent is used.  The core
+module in this distribution isn't tied to any event loop at all.
+
+=head1 JUSTIFICATION
+
+While AnyEvent is a great event loop, it doesn't provide a standard mechnism
+for making and triggering your own events.  This has resulted in everyone
+doing their own thing, usually in the style of L<Object::Event>.  In find
+the API and the limitations of this style (only one listener per event)
+vexxing.  As such, this is my attempt at correcting the situation.
+
+This is implemented as a Moose Role, so you can borrow event listening
+functionality for any class.  It's implemented using Any::Moose, so if Moose
+is too heavy weight for you, you can just use Mouse.
+
+The core API is borrowed from the well thought out one in Node.js.  The
+bundled modules generally follow Node's lead unless there's a good reason
+not to.  For instance, the timer class does not, as Node implements them as
+global functions.
+
 =head1 SEE ALSO
 
 =over
 
-=item * Object::Event
+=item * L<Object::Event>
+
+=item * L<Mixin::Event::Dispatch>
+
+=item * L<Class::Publisher>
+
+=item * L<Event::Notify>
+
+=item * L<Notification::Center>
+
+=item * L<Class::Observable>
+
+=item * L<Reflex::Role::Reactive>
+
+=item * L<http://nodejs.org/docs/v0.5.4/api/events.html>
 
 =back
 

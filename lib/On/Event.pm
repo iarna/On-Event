@@ -65,7 +65,7 @@ has '_listeners'    => (isa=>'HashRef', is=>'ro', default=>sub{ {} });
 my %valid_events;
 has '_valid_events' => (isa=>'HashRef', is=>'ro', default=>sub{ $valid_events{ref $_[0]} ||= {} });
 
-sub has_event(@);
+sub has_event(@); ## no critic (ProhibitSubroutinePrototypes)
 has_event 'new_listener';
 
 my( $import, $unimport, $init_meta ) = any_moose('::Exporter')->build_import_methods(

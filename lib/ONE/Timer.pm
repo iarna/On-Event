@@ -1,70 +1,82 @@
-package On::Event::Timer;
+package ONE::Timer;
+# Dist::Zilla: +PodWeaver
+# ABSTRACT: Timer/timeout events for ONE
 use strict;
 use warnings;
-# ABSTRACT: Timer/timeout events for On::Event
-use Any::Moose;
 use AnyEvent;
-use On::Event;
+use ONE;
 use Scalar::Util;
 
-with 'On::Event';
+=attr our Num|CodeRef $.delay is ro = 0;
 
+The number of seconds to delay before triggering this event.  By default, triggers immediately.
+
+=attr our Num $.interval is ro = 0;
+
+The number of seconds to delay
+
+=cut
 has 'delay'    => (isa=>'Num|CodeRef', is=>'ro', default=>0);
 has 'interval' => (isa=>'Num', is=>'ro', default=>0);
 has '_guard'   => (is=>'rw');
+
+=event timeout
+
+This event takes no arguments.  It's emitted when the event time completes.
+
+=cut
 has_event 'timeout';
 
-no On::Event;
-no Any::Moose;
+no ONE;
 
 =head1 SYNOPSIS
 
-    use On::Event::Timer qw( sleep sleep_until );
+    use ONE::Timer qw( sleep sleep_until );
     
     # After five seconds, say Hi
-    On::Event::Timer->after( 5, sub { say "Hi!" } );
+    ONE::Timer->after( 5, sub { say "Hi!" } );
     
     sleep 3; # Sleep for 3 seconds without blocking events from firing
     
     # Two seconds from now, say At!
-    On::Event::Timer->at( time()+2, sub { say "At!" } );
+    ONE::Timer->at( time()+2, sub { say "At!" } );
     
     # Every 5 seconds, starting 5 seconds from now, say Ping
-    On::Event::Timer->every( 5, sub { say "Ping" } );
+    ONE::Timer->every( 5, sub { say "Ping" } );
     
     sleep_until time()+10; # Sleep until 10 seconds from now
+    
+    my $timer = ONE::Timer->new( delay=>5, interval=>25 );
+    
+    $timer->on( timeout => sub { say "Timer tick" } );
+    
+    $timer->start(); # Will say "Timer tick" in 5 secs and then ever 25 secs after that
+    
+    # ... later
+    
+    $timer->cancel(); # Will stop saying "Timer tick"
 
 =for test_synopsis
 use v5.10;
 
-=head1 DESCRIPTION
+=head1 OVERVIEW
 
 Trigger events at a specific time or after a specific delay.
 
 =cut
 
-sub import {
-    my $class = shift;
-    my $pkg = caller;
-    for ( @_ ) {
-        if ( !/^(?: sleep | sleep_until )$/x ) {
-            require Carp;
-            Carp::croak( "Can't import unknown helper $_" );
-        }
-        no strict 'refs'; ## no critic (ProhibitNoStrict)
-        *{"$pkg\::$_"} = \&{"$class\::$_"};
-    }
+use Exporter;
+BEGIN {
+    no warnings;
+    *import = \&Exporter::import;
 }
+our @EXPORT_OK = qw( sleep sleep_until );
 
 =head1 HELPERS
 
-=over
-
-=item our sub sleep( Rat $secs ) is export
+=head2 our sub sleep( Rat $secs ) is export
 
 Sleep for $secs while allowing events to emit (and Coroutine threads to run)
-
-=back
 
 =cut
 
@@ -77,11 +89,9 @@ sub sleep {
 
 =over
 
-=item our sub sleep_until( Rat $epochtime ) is export
+=head2 our sub sleep_until( Rat $epochtime ) is export
 
 Sleep until $epochtime while allowing events to emit (and Coroutine threads to run)
-
-=back
 
 =cut
 
@@ -93,11 +103,7 @@ sub sleep_until {
     $cv->recv;
 }
 
-=head1 CLASS METHODS
-
-=over
-
-=item our method after( Rat $seconds, CodeRef $on_timeout ) returns On::Event::Timer
+=classmethod our method after( Rat $seconds, CodeRef $on_timeout ) returns ONE::Timer
 
 Asynchronously, after $seconds, calls $on_timeout.  If you store the return
 value, it acts as a guard-- if it's destroyed then the timer is canceled.
@@ -113,7 +119,7 @@ sub after {
     return $self;
 }
 
-=item our method at( Rat $epochtime, CodeRef $on_timeout ) returns On::Event::Timer
+=classmethod our method at( Rat $epochtime, CodeRef $on_timeout ) returns ONE::Timer
 
 Asychronously waits until $epochtime and then calls $on_timeout. If you store the
 return value, it acts as a guard-- if it's destoryed then the timer is canceled.
@@ -129,7 +135,7 @@ sub at {
     return $self;
 }
 
-=item our method every( Rat $seconds, CodeRef $on_timeout ) returns On::Event::Timer
+=classmethod our method every( Rat $seconds, CodeRef $on_timeout ) returns ONE::Timer
 
 Asychronously, after $seconds and every $seconds there after, calls $on-Timeout.  If you
 store the return value it acts as a guard-- if it's destroyed then the timer is canceled.
@@ -145,38 +151,13 @@ sub every {
     return $self;
 }
 
-=item our method new( :$delay, :$interval? ) returns On::Event::Timer
+=classmethod our method new( :$delay, :$interval? ) returns ONE::Timer
 
 Creates a new timer object that will emit it's "timeout" event after $delay
 seconds and every $interval seconds there after.  Delay can be a code ref,
 in which case it's return value is the number of seconds to delay.
 
-=back
-
-=head1 METHODS
-
-=over
-
-=item our method on( Str $event, CodeRef $listener ) returns CodeRef
-
-Registers $listener as a listener on $event.  When $event is emitted ALL
-registered listeners are executed.
-
-Returns the listener coderef.
-
-=item our method emit( Str $event, Array[Any] *@args )
-
-Normally called within the class using the On::Event role.  This calls all
-of the registered listeners on $event with @args.
-
-If you're using coroutines then each listener will get its own thread and
-emit will cede before returning.
-
-=item our method remove_all_listeners( Str $event )
-
-Removes all listeners for $event
-
-=item our method start( $is_obj_guard = False )
+=method our method start( $is_obj_guard = False )
 
 Starts the timer object running.  If $is_obj_guard is true, then destroying
 the object will cancel the timer.
@@ -212,7 +193,7 @@ sub start {
     $self->_guard( $w );
 }
 
-=item our method cancel()
+=method our method cancel()
 
 Cancels a running timer. You can start the timer again by calling the start
 method.  For after and every timers, it begins waiting all over again. At timers will
@@ -229,27 +210,11 @@ sub cancel {
     $self->_guard( undef );
 }
 
-=back
-
-=head1 EVENTS
-
-=over
-
-=item timeout
-
-This event takes no arguments.  It's emitted when the event time completes.
-
-=back
-
 =head1 SEE ALSO
 
-=over
-
-=item * L<AnyEvent>
-
-=item * L<http://nodejs.org/docs/v0.5.4/api/timers.html>
-
-=back
+ONE
+AnyEvent
+http://nodejs.org/docs/v0.5.4/api/timers.html
 
 =cut
 

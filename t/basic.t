@@ -4,15 +4,13 @@ use Test::More tests => 4;
 
 BEGIN {
     package TestEvent;
-    use On::Event;
-    use Any::Moose;
-
-    with 'On::Event';
+    use strict;
+    use warnings;
+    use ONE;
 
     has_event 'ping';
 
-    no On::Event; 
-    no Any::Moose;
+    no ONE; 
 }
 
 my $te = TestEvent->new;

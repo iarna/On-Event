@@ -1,56 +1,65 @@
-package On::Event;
-# ABSTRACT: Flexible event handling built on the power of AnyEvent
+package ONE;
+# Dist::Zilla: +PodWeaver
+# ABSTRACT: A Node style event Role for Moose
 =head1 SYNOPSIS
 
   package Example;
-  use Any::Moose;
-  use On::Event;
-  with 'On::Event';
-  has_event 'ping';
+  use ONE;
+  has_event 'pinged';
+  sub ping {
+      my $self = shift;
+      $self->emit('pinged');
+  }
   
   package main;
   my $example = Example->new;
-  $example->on( ping => sub { say "Got a ping!" } );
-  $example->on( ping => sub { say "Got another ping!" } );
-  $example->emit( "ping" ); # prints "Got a ping!" and "Got another ping!"
-  $example->remove_all_listeners( 'ping' );
+  $example->on( pinged => sub { say "Got a ping!" } );
+  $example->on( pinged => sub { say "Got another ping!" } );
+  $example->ping; # prints "Got a ping!" and "Got another ping!"
+  $example->remove_all_listeners( "pinged" ); # Remove all of the pinged listeners
+  $example->once( pinged => sub { say "First ping." } );
+  $example->ping; $example->ping; # Only prints "First ping." once
+  my $listener = $example->on( pinged => sub { say "Ping" } );
+  $example->remove_listener( pinged => $listener );
+  $example->ping(); # Does nothing
 
 =for test_synopsis
 use v5.10;
 
-=head1 DESCRIPTION
+=head1 OVERVIEW
 
-This provides a simple and flexible event API, implemented on top of
-AnyEvent.  The API is in the style of Node.js.
+This provides Node.js style events in a Role for Moose.
 
-=head1 USING
+ONE is implemented as a Moose Role.  To add events to your object:
 
-On::Event is implemented as a Moose Role.  To add events to your object:
-
-  with 'On::Event';
+  use 'ONE';
 
 It provides a helper declare what events your object supports:
-
-  use On::Event;
   
-  has_event 'event_name';
+  has_event 'event';
+  ## or
   has_events qw( event1 event2 event3 );
 
 Users of your class can now call the "on" method in order to register an event handler:
 
-  $obj->on( event1 => sub { say "I has an event;" } );
+  $obj->on( event1 => sub { say "I has an event"; } );
 
 And clear their event listeners with:
 
-  $obj->remove_all_listeners( 'ping' );
+  $obj->remove_all_listeners( "event1" );
+
+Or add and clear just one listener:
+
+  my $listener = $obj->on( event1 => sub { say "Event here"; } );
+  $obj->remove_listener( event1 => $listener );
 
 You can trigger events from your class with the "emit" method:
 
-  $self->emit( "event1", "arg1", "arg2", "argn" );
+  $self->emit( event1 => ( "arg1", "arg2", "argn" ) );
 
-You can remove the has_event and has_events helpers by unimporting On::Event:
+You can remove the has_event and has_events helpers by unimporting ONE:
 
-  no On::Event;
+  no ONE;
 
 =cut
 
@@ -59,50 +68,44 @@ use warnings;
 use Any::Moose 'Role';
 use Any::Moose '::Exporter';
 
-has 'autoload'      => (isa=>'Bool',    is=>'rw', default=>1);
 has '_listeners'    => (isa=>'HashRef', is=>'ro', default=>sub{ {} });
 
 my %valid_events;
 has '_valid_events' => (isa=>'HashRef', is=>'ro', default=>sub{ $valid_events{ref $_[0]} ||= {} });
 
-sub has_event(@); ## no critic (ProhibitSubroutinePrototypes)
-has_event 'new_listener';
+=event new_listener( Str $event, CodeRef $listener )
 
-my( $import, $unimport, $init_meta ) = any_moose('::Exporter')->build_import_methods(
-    as_is => [ 'has_event' ] );
+Called when a listener is added.  $event is the name of the event being listened to, and $listener is the
+listener being installed.
 
-*unimport = $unimport;
-*init_meta = $init_meta if defined $init_meta;
+=cut
 
+&has_event('new_listener');
 
-sub import {
-    my( $pkg ) = caller;
-    if ( @_ > 1 ) {
-        for ( @_[1..$#_] ) {
-            my( $class, $import_str ) = split /=/;
-            my @imports = do { split( /\s*,\s*/, $import_str ) if defined $import_str };
-            eval qq{ require On::Event::$class; }; ## no critic (ProhibitStringyEval)
-            Carp::croak $@ if $@;
-            eval qq{ package $pkg; On::Event::$class->import(\@imports); };## no critic (ProhibitStringyEval)
-            Carp::croak $@ if $@;
-        }
-    }
-    else {
-        goto $import;
+{
+    my ($import, $unimport, $init_meta) = any_moose('::Exporter')->build_import_methods(
+        as_is => [ 'has_event', 'has_events' ],
+        also  => [ any_moose() ] );
+
+    *unimport = $unimport;
+    *init_meta = $init_meta if defined $init_meta;
+
+    sub import {
+        my $class = shift;
+        my $caller = caller();
+        $class->$import( { into => $caller }, @_ );
+        eval "package $caller; with('ONE');";
     }
 }
 
+
 =head1 HELPERS (exported subroutines)
 
-=over
+=head2 sub has_event( Array[Str] *@event_names ) is export
 
-=item sub has_event( Array[Str] *@event_names ) is export
-
-=item sub has_events( Array[Str] *@event_names ) is export
+=head2 sub has_events( Array[Str] *@event_names ) is export
 
 Registers your class as being able to emit the event names listed.
-
-=back
 
 =cut
 
@@ -111,11 +114,10 @@ sub has_event(@) { ## no critic (ProhibitSubroutinePrototypes)
     $valid_events{$pkg}{$_} = 1 for @_;
 }
 
-=head1 METHODS
+## Create the has_events alias
+BEGIN { *has_events = \&has_event; }
 
-=over
-
-=item our method event_exists( Str $event ) returns Bool
+=method our method event_exists( Str $event ) returns Bool
 
 Returns true if $event is a valid event name for this class.
 
@@ -149,7 +151,7 @@ sub event_exists {
     return 0;
 }
 
-=item our method on( Str $event, CodeRef $listener ) returns CodeRef
+=method our method on( Str $event, CodeRef $listener ) returns CodeRef
 
 Registers $listener as a listener on $event.  When $event is emitted ALL
 registered listeners are executed.
@@ -170,7 +172,7 @@ sub on {
     return $listener;
 }
 
-=item our method once( Str $event, CodeRef $listener ) returns CodeRef
+=method our method once( Str $event, CodeRef $listener ) returns CodeRef
 
 Registers $listener as a listener on $event. Event listeners registered via
 once will emit only once.
@@ -193,9 +195,9 @@ sub once {
     return $wrapped;
 }
 
-=item our method emit( Str $event, Array[Any] *@args )
+=method our method emit( Str $event, Array[Any] *@args )
 
-Normally called within the class using the On::Event role.  This calls all
+Normally called within the class using the ONE role.  This calls all
 of the registered listeners on $event with @args.
 
 If you're using coroutines then each listener will get its own thread and
@@ -217,7 +219,7 @@ sub emit {
 
 =begin internal
 
-=item my method emit_stock( Str $event, Array[Any] *@args )
+=method my method emit_stock( Str $event, Array[Any] *@args )
 
 The standard impelementation of the emit method-- calls the listeners
 immediately and in the order they were defined.
@@ -241,7 +243,7 @@ sub emit_stock {
 
 =begin internal
 
-=item my method emit_coro( Str $event, Array[Any] *@args )
+=method my method emit_coro( Str $event, Array[Any] *@args )
 
 The L<Coro> implementation of the emit method-- calls each of the listeners
 in its own thread and emits immediate execution by calling cede before
@@ -266,7 +268,7 @@ sub emit_coro {
 }
 
 
-=item our method remove_all_listeners( Str $event )
+=method our method remove_all_listeners( Str $event )
 
 Removes all listeners for $event
 
@@ -283,7 +285,7 @@ sub remove_all_listeners {
     }
 }
 
-=item our method remove_listener( Str $event, CodeRef $listener )
+=method our method remove_listener( Str $event, CodeRef $listener )
 
 Removes $listener from $event
 
@@ -297,7 +299,7 @@ sub remove_listener {
         [ grep { $_ != $listener } @{ $self->{_listeners}{$event} } ];
 }
 
-=item our method listeners( Str $event ) returns ArrayRef[CodeRef]
+=method our method listeners( Str $event ) returns ArrayRef[CodeRef]
 
 For a given event, returns an arrayref of listener coderefs.  Editing this
 list will edit the listeners for this item.
@@ -311,51 +313,17 @@ sub listeners {
 }
 
 
-=back
-
-=head1 WHAT THIS ISN'T
-
-This isn't an event loop, where one is needed, AnyEvent is used.  The core
-module in this distribution isn't tied to any event loop at all.
-
-=head1 JUSTIFICATION
-
-While AnyEvent is a great event loop, it doesn't provide a standard mechnism
-for making and triggering your own events.  This has resulted in everyone
-doing their own thing, usually in the style of L<Object::Event>.  In find
-the API and the limitations of this style (only one listener per event)
-vexxing.  As such, this is my attempt at correcting the situation.
-
-This is implemented as a Moose Role, so you can borrow event listening
-functionality for any class.  It's implemented using Any::Moose, so if Moose
-is too heavy weight for you, you can just use Mouse.
-
-The core API is borrowed from the well thought out one in Node.js.  The
-bundled modules generally follow Node's lead unless there's a good reason
-not to.  For instance, the timer class does not, as Node implements them as
-global functions.
-
 =head1 SEE ALSO
 
-=over
-
-=item * L<Object::Event>
-
-=item * L<Mixin::Event::Dispatch>
-
-=item * L<Class::Publisher>
-
-=item * L<Event::Notify>
-
-=item * L<Notification::Center>
-
-=item * L<Class::Observable>
-
-=item * L<Reflex::Role::Reactive>
-
-=item * L<http://nodejs.org/docs/v0.5.4/api/events.html>
-
-=back
+Object::Event
+Mixin::Event::Dispatch
+Class::Publisher
+Event::Notify
+Notification::Center
+Class::Observable
+Reflex::Role::Reactive
+Aspect::Library::Listenable
+http://nodejs.org/docs/v0.5.4/api/events.html
 
 =cut
 
@@ -363,12 +331,3 @@ global functions.
 no Any::Moose;
 1;
 
-=for internal
-
-=over
-
-=item sub unimport
-
-=back
-
-=cut

@@ -1,1 +1,34 @@
-On::Event needs:
+ONE::IO
+   Wrap AE::IO
+ONE::Signal
+   Wrap AE::signal
+
+ONE::Subprocess
+   Fork + AE::child
+
+ONE -> rename ONE::Loop
+ONE -> singleton class for global event handlers:
+   loop - start the main event loop
+   stop - stops the main event loop, usually the program exits after
+   Events:
+     idle: AE::idle
+     SIG*: AE::signal *
+
+ONE::Handle
+   Wrap AnyEvent::Handle
+ONE::Socket
+   Wrap AnyEvent::Socket
+
+ONE::Collate
+   Document
+
+Look at AnyEvent::Debounce-- event collation would be nice to have as an
+option.
+
+ONE::Timer->every( 1 => dampen { say "boo" 
+my $t = ONE::Timer->new( interval=>1 );
+$t->on( timeout => dampen { say "boo" x @{$_[1]} } );
+$t->start;
+sleep 3.5;
+$t->cancel; # Will print "booboo" and "boo", as the first two ticks got
+            # combined, and the third tick 

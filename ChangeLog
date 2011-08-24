@@ -1,4 +1,7 @@
-Revision history for perl module On::Event
+Revision history for perl module ONE
+
+{{$NEXT}}
+- Rename from On::Event to ONE
 
 v0.1.1 2011-08-19
 - Fix issue that was stopping 5.8 from completing the tests.

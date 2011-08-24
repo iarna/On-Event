@@ -1,0 +1,78 @@
+=head1 NAME
+
+ONE - Flexible event handling built on the power of AnyEvent
+
+=head1 VERSION
+
+version v0.2.0
+
+=head1 SYNOPSIS
+
+  package Example;
+  use ONE;
+  has_event 'pinged';
+  sub ping {
+      my $self = shift;
+      $self->emit('pinged');
+  }
+  
+  package main;
+  my $example = Example->new;
+  $example->on( pinged => sub { say "Got a ping!" } );
+  $example->on( pinged => sub { say "Got another ping!" } );
+  $example->ping; # prints "Got a ping!" and "Got another ping!"
+  $example->remove_all_listeners( "pinged" ); # Remove all of the pinged listeners
+  $example->once( pinged => sub { say "First ping." } );
+  $example->ping; $example->ping; # Only prints "First ping." once
+  my $listener = $example->on( pinged => sub { say "Ping" } );
+  $example->remove_listener( pinged => $listener );
+  $example->ping(); # Does nothing
+
+  use ONE::Timer;
+
+  ONE::Timer->after( 5, sub { say "Five secs pased." } );
+  ONE::Timer->at( time()+86400, sub { say "It's tomorrow." });
+  ONE::Timer->every( 30, sub { say "Thirty second ding." } );
+  
+  use ONE::Timer qw( sleep );
+  sleep 5; # Sleep in a way that doesn't block other events from firing.
+
+=head1 INCLUDED MODULES
+
+=over
+
+=item * L<ONE> - The base event class, use this if you want to add events to your own class
+
+=item * L<ONE::Timer> - Timers the ONE way, implemented using AnyEvent
+
+=back
+
+=head1 DESCRIPTION
+
+This provides a simple and flexible event API, implemented on top of
+AnyEvent.  The API is in the style of Node.js.
+
+=for test_synopsis use v5.10;
+
+=head1 WHAT THIS ISN'T
+
+This isn't an event loop, where one is needed, AnyEvent is used.  The core
+module in this distribution isn't tied to any event loop at all.
+
+=head1 JUSTIFICATION
+
+While AnyEvent is a great event loop, it doesn't provide a standard mechnism
+for making and triggering your own events.  This has resulted in everyone
+doing their own thing, usually in the style of L<Object::Event>.  In find
+the API and the limitations of this style (only one listener per event)
+vexxing.  As such, this is my attempt at correcting the situation.
+
+This is implemented as a Moose Role, so you can borrow event listening
+functionality for any class.  It's implemented using Any::Moose, so if Moose
+is too heavy weight for you, you can just use Mouse.
+
+The core API is borrowed from the well thought out one in Node.js.  The
+bundled modules generally follow Node's lead unless there's a good reason
+not to.  For instance, the timer class does not, as Node implements them as
+global functions.
+

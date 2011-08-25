@@ -25,6 +25,7 @@ BEGIN {
     }
 
     no ONE; 
+    __PACKAGE__->meta->make_immutable();
 }
 
 my $te = TestEvent->new;

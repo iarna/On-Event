@@ -1,3 +1,25 @@
+Documentation:
+
+   -nomagic, -alias, -excludes
+
+   The fact that event's get the object triggering them as their first
+   argument.
+
+   Blog post about event grouping (eg collate):
+       my $group = ONE::Group->do( sub {
+       });
+       $group->once( all => sub {
+          # do something when all of the grouped events have fired at least
+          # once
+          } );
+
+   Contemplate removing ONE::Timer's sleep, that really belongs in Coro
+   land.  Collate would do better there too.
+
+   Implement collate as: my $g = ONE::Group->do( $todo ); $g->once( all=> rouse_cb ); rouse_wait;
+   Implement sleep as: ONE::Timer->after( 5, rouse_cb ); rouse_wait;
+   
+
 ONE::IO
    Wrap AE::IO
 ONE::Signal
@@ -6,7 +28,9 @@ ONE::Signal
 ONE::Subprocess
    Fork + AE::child
 
-ONE -> rename ONE::Loop
+rename ONE to ONE::Listenable? MooseX::Event?
+
+rename ONE::Loop -> ONE
 ONE -> singleton class for global event handlers:
    loop - start the main event loop
    stop - stops the main event loop, usually the program exits after

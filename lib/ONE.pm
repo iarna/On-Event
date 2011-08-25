@@ -93,8 +93,53 @@ listener being installed.
     sub import {
         my $class = shift;
         my $caller = caller();
-        $class->$import( { into => $caller }, @_ );
-        eval "package $caller; with('ONE');";
+        my $autorole = 1;
+        my $automoose = 1;
+        my @args;
+        for (@_) {
+            my $cmd;
+            my $set;
+            if ( /^-no(.*)/ ) {
+                $cmd = $1;
+                $set = 0;
+            }
+            elsif ( s/^-(.*)// ) {
+                $cmd = $1;
+                $set = 1;
+            }
+            if (defined $cmd) {
+                if ( $cmd eq 'autorole' ) {
+                    $autorole = $set;
+                }
+                elsif ( $cmd eq 'automoose' ) {
+                    $automoose = $set;
+                }
+                elsif ( $cmd eq 'auto' ) {
+                    $autorole = $automoose = $set;
+                }
+                else {
+                    push @args, $_;
+                }
+            }
+            else {
+                push @args, $_;
+            }
+        }
+        if ( $automoose ) {
+            $class->$import( { into => $caller }, @args );
+        }
+        elsif ( @args ) {
+            require Carp;
+            Carp::croak( "$class: Unknown import arguments ".join(", ",@args) );
+        }
+        else {
+            no strict 'refs';
+            *{$caller.'::has_event'} = \&has_event;
+            *{$caller.'::has_events'} = \&has_event;
+        }
+        if ( $autorole ) {
+            eval "package $caller; with('ONE');";
+        }
     }
 }
 

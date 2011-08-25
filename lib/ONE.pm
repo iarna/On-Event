@@ -89,33 +89,43 @@ listener being installed.
 
     *unimport = $unimport;
     *init_meta = $init_meta if defined $init_meta;
-
+    
     sub import {
         my $class = shift;
         my $caller = caller();
-        my $autorole = 1;
-        my $automoose = 1;
+        my $magic = 1;
+        my $with_args = {};
         my @args;
-        for (@_) {
+        while (local $_ = shift @_) {
             my $cmd;
             my $set;
             if ( /^-no(.*)/ ) {
                 $cmd = $1;
                 $set = 0;
             }
-            elsif ( s/^-(.*)// ) {
+            elsif ( /^-(.*)/ ) {
                 $cmd = $1;
                 $set = 1;
             }
             if (defined $cmd) {
-                if ( $cmd eq 'autorole' ) {
-                    $autorole = $set;
+                if ( $cmd eq 'magic' ) {
+                    $magic = $set;
                 }
-                elsif ( $cmd eq 'automoose' ) {
-                    $automoose = $set;
+                elsif ( $cmd eq 'alias' ) {
+                    if ( $set ) {
+                        $with_args->{'-alias'} = shift;
+                    }
+                    else {
+                        delete $with_args->{'-alias'};
+                    }
                 }
-                elsif ( $cmd eq 'auto' ) {
-                    $autorole = $automoose = $set;
+                elsif ( $cmd eq 'excludes' ) {
+                    if ( $set ) {
+                        $with_args->{'-excludes'} = shift;
+                    }
+                    else {
+                        delete $with_args->{'-excludes'};
+                    }
                 }
                 else {
                     push @args, $_;
@@ -125,7 +135,7 @@ listener being installed.
                 push @args, $_;
             }
         }
-        if ( $automoose ) {
+        if ( $magic ) {
             $class->$import( { into => $caller }, @args );
         }
         elsif ( @args ) {
@@ -133,12 +143,17 @@ listener being installed.
             Carp::croak( "$class: Unknown import arguments ".join(", ",@args) );
         }
         else {
+            print "Export into $caller\n";
             no strict 'refs';
             *{$caller.'::has_event'} = \&has_event;
             *{$caller.'::has_events'} = \&has_event;
         }
-        if ( $autorole ) {
-            eval "package $caller; with('ONE');";
+        if ( $magic ) {
+            eval "package $caller; with('ONE' => \$with_args);";
+            if ( $@ ) {
+                require Carp;
+                Carp::croak( "$class: $@");
+            }
         }
     }
 }

@@ -6,15 +6,10 @@ BEGIN {
     package TestEvent;
     use strict;
     use warnings;
-    use Moose;
-    use ONE '-noauto';
-
-    with 'ONE' => {
-        -alias => {
-            on => 'listen_on',
-            once => 'listen_once',
-            emit => 'emit_event',
-        },
+    use ONE '-alias' => {
+        on => 'listen_on',
+        once => 'listen_once',
+        emit => 'emit_event',
     };
 
     has_event 'ping';

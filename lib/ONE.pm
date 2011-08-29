@@ -1,51 +1,13 @@
-package ONE;
+# ABSTRACT: A Node.js style AnyEvent class, using MooseX::Event
 # Dist::Zilla: +PodWeaver
-# ABSTRACT: A starter for the base event loop
+package ONE;
 use strict;
 use warnings;
 use AnyEvent;
 use ONE::Collate;
-use Any::Moose;
-use MooseX::Event qw( -nomagic );
+use MooseX::Event;
 
-with 'MooseX::Event' => {};
-
-=head1 SYNOPSIS
-
-General event loop:
-
-    use ONE;
-    
-    ONE->start;
-
-Collation:
-    use ONE::Timer;
-    
-    collate {
-         ONE::Timer->after( 2 => sub { say "two" } );
-         ONE::Timer->after( 3 => sub { say "three" } );
-    }; # After three seconds will have printed "two" and "three"
-
-=for test_synopsis
-use v5.10;
-
-=head1 OVERVIEW
-
-=cut
-
-BEGIN {
-    our $collater;
-    sub cmd_collate (&) {
-        my $collater = ONE::Collate->new();
-        my $wrapper = MooseX::Event->add_listener_wrapper( sub {
-            my( $todo ) = @_;
-            $collater->listener( $todo );
-        } );
-        $_[0]->();
-        MooseX::Event->remove_listener_wrapper( $wrapper );
-        $collater->collate;
-    }
-}
+with 'MooseX::Event::Class';
 
 =helper collate { ... }
 
@@ -54,9 +16,20 @@ been emitted at least once.
 
 =cut
 
-has '_loop_cv' => (isa=>'AnyEvent::CondVar|Undef', is=>'rw');
-has '_idle_cv' => (isa=>'Ref|Undef', is=>'rw');
-has '_signal'  => (isa=>'HashRef[AnyEvent::Guard]', is=>'rw', default=>sub{{}});
+sub collate (&) {
+    my $collater = ONE::Collate->new();
+    my $wrapper = MooseX::Event->add_listener_wrapper( sub {
+        my( $todo ) = @_;
+        $collater->listener( $todo );
+    } );
+    $_[0]->();
+    MooseX::Event->remove_listener_wrapper( $wrapper );
+    $collater->collate;
+}
+
+has '_loop_cv' => (is=>'rw', init_arg=>undef);
+has '_idle_cv' => (is=>'rw', init_arg=>undef );
+has '_signal'  => (is=>'rw', default=>sub{{}}, init_arg=>undef);
 
 has_events qw(
     idle 
@@ -64,6 +37,30 @@ has_events qw(
     SIGUSR1  SIGSEGV SIGUSR2 SIGPIPE SIGALRM SIGTERM SIGSTKFLT SIGCHLD   SIGCONT
     SIGSTOP  SIGTSTP SIGTTIN SIGTTOU SIGURG  SIGXCPU SIGXFSZ   SIGVTALRM SIGPROF
     SIGWINCH SIGIO   SIGPWR  SIGSYS );
+
+
+# We would just use MooseX::Singleton, but it's nice to maintain compatibility with Mouse
+BEGIN {
+    my $instance;
+    sub instance {
+        my $class = shift;
+        return $instance ||= $class->new(@_);
+    }
+}
+
+
+=for internal
+
+=head1 our method activate_event( $event )
+
+This method is called by MooseX::Event when the first event listener for a
+particular event is registered.  We use this to start the AE::idle or
+AE::signal event listeners.  We wouldn't want them running when the user has
+no active listeners.
+
+=done
+
+=cut
 
 sub activate_event {
     my $self = shift;
@@ -77,6 +74,18 @@ sub activate_event {
     }
 }
 
+=for internal
+
+=head1 our method deactivate_event( $event )
+
+This method is called by MooseX::Event when the last event listener for a
+particular event is removed.  We use this to shutdown the AE::idle or
+AE::signal event listeners when the last acitve listener is removed.
+
+=done
+
+=cut
+
 sub deactivate_event {
     my $self = shift;
     my( $event ) = @_;
@@ -88,28 +97,17 @@ sub deactivate_event {
     } 
 }
 
-=classmethod our method instance() returns ONE
-
-
-=cut
-
-my $self;
-
-sub instance {
-    my $class = shift;
-    return $self ||= $class->new;
-}
-
 =classmethod our method loop()
 
-Starts the main event loop.
+Starts the main event loop.  This will return when the stop method is
+called.  If you call start with an already active loop, the previous loop
+will be stopped and a new one started.
 
 =cut
-
 
 sub loop {
     my $cors = shift;
-    $self = ref $cors ? $cors : $cors->instance;
+    my $self = ref $cors ? $cors : $cors->instance;
     if ( defined $self->_loop_cv ) {
         $self->_loop_cv->send();
     }
@@ -126,7 +124,7 @@ Exits the main event loop.
 
 sub stop {
     my $cors = shift;
-    $self = ref $cors ? $cors : $cors->instance;
+    my $self = ref $cors ? $cors : $cors->instance;
     return unless defined $self->_loop_cv;
     $self->_loop_cv->send();
     delete $self->{'_loop_cv'};
@@ -154,14 +152,16 @@ sub import {
     }
     
     no strict 'refs';
-    *{$caller.'::collate'} = $class->can('cmd_collate');
+    *{$caller.'::collate'} = $class->can('collate');
 }
 
 =for internal
 
-=classmethod our method unimport()
+=head1 our method unimport()
 
 Removes the collate helper method
+
+=done
 
 =cut
 
@@ -171,5 +171,32 @@ sub unimport {
     delete ${$caller.'::'}{'collate'};
 }
 
+__PACKAGE__->meta->make_immutable();
+no MooseX::Event;
 
 1;
+
+=pod
+
+=head1 SYNOPSIS
+
+General event loop:
+
+    use ONE;
+    
+    ONE->start;
+
+Collation:
+    use ONE::Timer;
+    
+    collate {
+         ONE::Timer->after( 2 => sub { say "two" } );
+         ONE::Timer->after( 3 => sub { say "three" } );
+    }; # After three seconds will have printed "two" and "three"
+
+=for test_synopsis
+use v5.10;
+
+=head1 DESCRIPTION
+
+=cut

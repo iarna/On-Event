@@ -27,10 +27,9 @@ no Any::Moose 'Role';
   package Example;
   use common::sense;
   use MooseX::Singleton;
-  use MooseX::Event qw( -nomagic );
+  use MooseX::Event;
   
   with 'MooseX::Event::Class';
-  
   
   has_event 'pinged';
   

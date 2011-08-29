@@ -3,21 +3,26 @@ package ONE::Timer;
 # ABSTRACT: Timer/timeout events for MooseX::Event
 use strict;
 use warnings;
-use AnyEvent;
+
+use AnyEvent ();
 use MooseX::Event;
-use Scalar::Util;
+use Scalar::Util ();
 
 =attr our Num|CodeRef $.delay is ro = 0;
 
 The number of seconds to delay before triggering this event.  By default, triggers immediately.
+
+=cut
+has 'delay'    => (isa=>'Num|CodeRef', is=>'ro', default=>0);
+
 
 =attr our Num $.interval is ro = 0;
 
 The number of seconds to delay
 
 =cut
-has 'delay'    => (isa=>'Num|CodeRef', is=>'ro', default=>0);
 has 'interval' => (isa=>'Num', is=>'ro', default=>0);
+
 has '_guard'   => (is=>'rw');
 
 =event timeout
@@ -25,51 +30,14 @@ has '_guard'   => (is=>'rw');
 This event takes no arguments.  It's emitted when the event time completes.
 
 =cut
+
 has_event 'timeout';
 
-no MooseX::Event;
-
-=head1 SYNOPSIS
-
-    use ONE qw( Timer=sleep:sleep_until );
-    
-    # After five seconds, say Hi
-    ONE::Timer->after( 5, sub { say "Hi!" } );
-    
-    sleep 3; # Sleep for 3 seconds without blocking events from firing
-    
-    # Two seconds from now, say At!
-    ONE::Timer->at( time()+2, sub { say "At!" } );
-    
-    # Every 5 seconds, starting 5 seconds from now, say Ping
-    ONE::Timer->every( 5, sub { say "Ping" } );
-    
-    sleep_until time()+10; # Sleep until 10 seconds from now
-    
-    my $timer = ONE::Timer->new( delay=>5, interval=>25 );
-    
-    $timer->on( timeout => sub { say "Timer tick" } );
-    
-    $timer->start(); # Will say "Timer tick" in 5 secs and then ever 25 secs after that
-    
-    # ... later
-    
-    $timer->cancel(); # Will stop saying "Timer tick"
-
-=for test_synopsis
-use v5.10;
-
-=head1 OVERVIEW
-
-Trigger events at a specific time or after a specific delay.
-
-=cut
+no MooseX::Event; # Remove the moose helpers, so we can declare our own after method
 
 use Exporter;
-BEGIN {
-    no warnings;
-    *import = \&Exporter::import;
-}
+*import = \&Exporter::import;
+
 our @EXPORT_OK = qw( sleep sleep_until );
 
 =head1 HELPERS
@@ -210,12 +178,50 @@ sub cancel {
     $self->_guard( undef );
 }
 
+
+__PACKAGE__->meta->make_immutable();
+
+1;
+
+=pod
+
+=head1 SYNOPSIS
+
+    use ONE qw( Timer=sleep:sleep_until );
+    
+    # After five seconds, say Hi
+    ONE::Timer->after( 5, sub { say "Hi!" } );
+    
+    sleep 3; # Sleep for 3 seconds without blocking events from firing
+    
+    # Two seconds from now, say At!
+    ONE::Timer->at( time()+2, sub { say "At!" } );
+    
+    # Every 5 seconds, starting 5 seconds from now, say Ping
+    ONE::Timer->every( 5, sub { say "Ping" } );
+    
+    sleep_until time()+10; # Sleep until 10 seconds from now
+    
+    my $timer = ONE::Timer->new( delay=>5, interval=>25 );
+    
+    $timer->on( timeout => sub { say "Timer tick" } );
+    
+    $timer->start(); # Will say "Timer tick" in 5 secs and then ever 25 secs after that
+    
+    # ... later
+    
+    $timer->cancel(); # Will stop saying "Timer tick"
+
+=for test_synopsis
+use v5.10;
+
+=head1 OVERVIEW
+
+Trigger events at a specific time or after a specific delay.
+
 =head1 SEE ALSO
 
 ONE
 AnyEvent
 http://nodejs.org/docs/v0.5.4/api/timers.html
 
-=cut
-
-1;

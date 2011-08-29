@@ -1,73 +1,14 @@
-package MooseX::Event;
-# Dist::Zilla: +PodWeaver
 # ABSTRACT: A Node style event Role for Moose
-=head1 SYNOPSIS
-
-  package Example;
-  use common::sense;
-  use MooseX::Event;
-  
-  has_event 'pinged';
-  
-  sub ping {
-      my $self = shift;
-      $self->emit('pinged');
-  }
-  
-  package main;
-  my $example = Example->new;
-  $example->on( pinged => sub { say "Got a ping!" } );
-  $example->on( pinged => sub { say "Got another ping!" } );
-  $example->ping; # prints "Got a ping!" and "Got another ping!"
-  $example->remove_all_listeners( "pinged" ); # Remove all of the pinged listeners
-  $example->once( pinged => sub { say "First ping." } );
-  $example->ping; $example->ping; # Only prints "First ping." once
-  my $listener = $example->on( pinged => sub { say "Ping" } );
-  $example->remove_listener( pinged => $listener );
-  $example->ping(); # Does nothing
-
-=head1 OVERVIEW
-
-This provides Node.js style events in a Role for Moose.
-
-MooseX::Event is implemented as a Moose Role.  To add events to your object:
-
-  use MooseX::Event;
-
-It provides a helper declare what events your object supports:
-  
-  has_event 'event';
-  ## or
-  has_events qw( event1 event2 event3 );
-
-Users of your class can now call the "on" method in order to register an event handler:
-
-  $obj->on( event1 => sub { say "I has an event"; } );
-
-And clear their event listeners with:
-
-  $obj->remove_all_listeners( "event1" );
-
-Or add and clear just one listener:
-
-  my $listener = $obj->on( event1 => sub { say "Event here"; } );
-  $obj->remove_listener( event1 => $listener );
-
-You can trigger events from your class with the "emit" method:
-
-  $self->emit( event1 => ( "arg1", "arg2", "argn" ) );
-
-You can remove the has_event and has_events helpers by unimporting MooseX::Event
-
-  no MooseX::event;
-
-=cut
+# Dist::Zilla: +PodWeaver
+package MooseX::Event;
 
 use strict;
 use warnings;
-use Any::Moose 'Role';
+use namespace::autoclean;
 use Any::Moose '::Exporter';
+use Any::Moose '::Util';
 use Scalar::Util qw( refaddr );
+use Any::Moose 'Role';
 
 has '_listeners'    => (isa=>'HashRef', is=>'ro', default=>sub{ {} });
 
@@ -92,81 +33,6 @@ listener being installed.
 =cut
 
 &has_event('new_listener');
-
-{
-    my ($import, $unimport, $init_meta) = any_moose('::Exporter')->build_import_methods(
-        as_is => [ 'has_event', 'has_events' ],
-        also  => [ any_moose() ] );
-
-    *unimport = $unimport;
-    *init_meta = $init_meta if defined $init_meta;
-    
-    sub import {
-        my $class = shift;
-        my $caller = caller();
-        my $magic = 1;
-        my $with_args = {};
-        my @args;
-        while (local $_ = shift @_) {
-            my $cmd;
-            my $set;
-            if ( /^-no(.*)/ ) {
-                $cmd = $1;
-                $set = 0;
-            }
-            elsif ( /^-(.*)/ ) {
-                $cmd = $1;
-                $set = 1;
-            }
-            if (defined $cmd) {
-                if ( $cmd eq 'magic' ) {
-                    $magic = $set;
-                }
-                elsif ( $cmd eq 'alias' ) {
-                    if ( $set ) {
-                        $with_args->{'-alias'} = shift;
-                    }
-                    else {
-                        delete $with_args->{'-alias'};
-                    }
-                }
-                elsif ( $cmd eq 'excludes' ) {
-                    if ( $set ) {
-                        $with_args->{'-excludes'} = shift;
-                    }
-                    else {
-                        delete $with_args->{'-excludes'};
-                    }
-                }
-                else {
-                    push @args, $_;
-                }
-            }
-            else {
-                push @args, $_;
-            }
-        }
-        if ( $magic ) {
-            $class->$import( { into => $caller }, @args );
-        }
-        elsif ( @args ) {
-            require Carp;
-            Carp::croak( "$class: Unknown import arguments ".join(", ",@args) );
-        }
-        else {
-            no strict 'refs';
-            *{$caller.'::has_event'} = \&has_event;
-            *{$caller.'::has_events'} = \&has_event;
-        }
-        if ( $magic ) {
-            eval "package $caller; with('MooseX::Event' => \$with_args);";
-            if ( $@ ) {
-                require Carp;
-                Carp::croak( "$class: $@");
-            }
-        }
-    }
-}
 
 
 =head1 HELPERS (exported subroutines)
@@ -308,27 +174,7 @@ sub once {
     });
 }
 
-=method our method emit( Str $event, Array[Any] *@args )
-
-Normally called within the class using the MooseX::Event role.  This calls all
-of the registered listeners on $event with @args.
-
-If you're using coroutines then each listener will get its own thread and
-emit will cede before returning.
-
-=cut
-
-sub emit {
-    no warnings 'redefine';
-    if ( defined *Coro::async{CODE} ) {
-        *emit = \&emit_coro;
-        goto \&emit_coro;
-    }
-    else {
-        *emit = \&emit_stock;
-        goto \&emit_stock;
-    }
-}
+BEGIN {
 
 =begin internal
 
@@ -341,21 +187,21 @@ immediately and in the order they were defined.
 
 =cut
 
-sub emit_stock {
-    my $self = shift;
-    my( $event, @args ) = @_;
-    if ( ! $self->event_exists($event) ) {
-        die "Event $event does not exist";
-    }
-    return unless exists $self->{_listeners}{$event};
-    my $ce = $self->current_event;
-    $self->current_event( $event );
-    foreach ( @{ $self->{_listeners}{$event} } ) {
-        $_->($self,@args);
-    }
-    $self->current_event($ce);
-    return;
-}
+    my $emit_stock = sub {
+        my $self = shift;
+        my( $event, @args ) = @_;
+        if ( ! $self->event_exists($event) ) {
+            die "Event $event does not exist";
+        }
+        return unless exists $self->{_listeners}{$event};
+        my $ce = $self->current_event;
+        $self->current_event( $event );
+        foreach ( @{ $self->{_listeners}{$event} } ) {
+            $_->($self,@args);
+        }
+        $self->current_event($ce);
+        return;
+    };
 
 =begin internal
 
@@ -369,33 +215,56 @@ returning.
 
 =cut
 
-sub emit_coro {
-    my $self = shift;
-    my( $event, @args ) = @_;
-    if ( ! $self->event_exists($event) ) {
-        die "Event $event does not exist";
-    }
-    return unless exists $self->{_listeners}{$event};
+    my $emit_coro = sub {
+        my $self = shift;
+        my( $event, @args ) = @_;
+        if ( ! $self->event_exists($event) ) {
+            die "Event $event does not exist";
+        }
+        return unless exists $self->{_listeners}{$event};
 
-    my $ce;
-    foreach my $todo ( @{ $self->{_listeners}{$event} } ) {
-        &Coro::async( sub {
-            &Coro::on_enter( sub {
-                $ce  = $self->current_event;
-                $self->current_event($event);
-            });
-            $todo->(@_);
-            &Coro::on_leave( sub {
-                $self->current_event($ce);
-            });
-        }, $self, @args );
-    }
-    Coro::cede();
+        my $ce;
+        foreach my $todo ( @{ $self->{_listeners}{$event} } ) {
+            &Coro::async( sub {
+                &Coro::on_enter( sub {
+                    $ce  = $self->current_event;
+                    $self->current_event($event);
+                });
+                $todo->(@_);
+                &Coro::on_leave( sub {
+                    $self->current_event($ce);
+                });
+            }, $self, @args );
+        }
+        Coro::cede();
 
-    $self->current_event($ce);
-    return;
+        $self->current_event($ce);
+        return;
+    };
+
+=method our method emit( Str $event, Array[Any] *@args )
+
+Normally called within the class using the MooseX::Event role.  This calls all
+of the registered listeners on $event with @args.
+
+If you're using coroutines then each listener will get its own thread and
+emit will cede before returning.
+
+=cut
+
+    sub emit {
+        no warnings 'redefine';
+        if ( defined *Coro::async{CODE} ) {
+            *emit = $emit_coro;
+            goto $emit_coro;
+        }
+        else {
+            *emit = $emit_stock;
+            goto $emit_stock;
+        }
+    }
+
 }
-
 
 =method our method remove_all_listeners( Str $event )
 
@@ -458,23 +327,138 @@ sub remove_listener {
     }
 }
 
-=classmethod 
+BEGIN {
+    my ($import, $unimport, $init_meta) = any_moose('::Exporter')->build_import_methods(
+        as_is => [ 'has_event', 'has_events' ],
+        also  => [ any_moose() ] );
 
-=head1 SEE ALSO
+    *init_meta = $init_meta if defined $init_meta;
 
-Object::Event
-Mixin::Event::Dispatch
-Class::Publisher
-Event::Notify
-Notification::Center
-Class::Observable
-Reflex::Role::Reactive
-Aspect::Library::Listenable
-http://nodejs.org/docs/v0.5.4/api/events.html
+    # We wrap the default import in order to load ourselves as a Role, without also
+    # pulling in the import/unimport/init_meta methods.
+    # Having import/unimport/init_meta as a Role is unusual, but we want them to
+    # provide the has_event / has_events helpers. 
+    sub import {
+        my $class = shift;
+        my $caller = caller();
 
-=cut
+        my $with_args = {-excludes=>[]};
 
+        my @args;
+        while (local $_ = shift @_) {
+            if ( $_ eq '-alias' ) {
+                $with_args->{'-alias'} = shift;
+            }
+            elsif ( $_ eq '-excludes' ) {
+                my $excludes = shift;
+                $with_args->{'-excludes'} = 
+                    (ref $excludes eq 'ARRAY') ? $excludes: [$excludes];
+            }
+            else {
+                push @args, $_;
+            }
+        }
 
-no Any::Moose;
+        $class->$import( { into => $caller }, @args );
+
+        push @{$with_args->{'-excludes'}}, qw( import unimport init_meta refaddr any_moose has_event has_events );
+        
+        if ( ! any_moose('::Util')->can('does_role')->( $caller, $class ) ) {
+            $class->meta->apply( $caller->meta, %{$with_args} );
+        }
+    }
+    
+    sub unimport {
+        my $class = shift;
+        my $caller = caller;
+        ## This doesn't seem to actually clean things up in Moose =/
+        ## Where as it does just fine in Mouse
+        $class->$unimport( { into => $caller }, @_ );
+        my $syms = do { no strict 'refs'; \%{$caller.'::'} };
+        for (qw( has_event has_events has before after around with override augment inner extends blessed carp )) {
+            delete $syms->{$_};
+        }
+    }
+}
+
+no Any::Moose '::Role';
+
 1;
 
+=pod
+
+=head1 SYNOPSIS
+
+  package Example;
+  use common::sense;
+  use MooseX::Event;
+  
+  has_event 'pinged';
+  
+  sub ping {
+      my $self = shift;
+      $self->emit('pinged');
+  }
+  
+  package main;
+  my $example = Example->new;
+  $example->on( pinged => sub { say "Got a ping!" } );
+  $example->on( pinged => sub { say "Got another ping!" } );
+  $example->ping; # prints "Got a ping!" and "Got another ping!"
+  $example->remove_all_listeners( "pinged" ); # Remove all of the pinged listeners
+  $example->once( pinged => sub { say "First ping." } );
+  $example->ping; $example->ping; # Only prints "First ping." once
+  my $listener = $example->on( pinged => sub { say "Ping" } );
+  $example->remove_listener( pinged => $listener );
+  $example->ping(); # Does nothing
+
+=head1 DESCRIPTION
+
+This provides Node.js style events in a Role for Moose.
+
+MooseX::Event is implemented as a Moose Role.  To add events to your object:
+
+  use MooseX::Event;
+
+It provides a helper declare what events your object supports:
+  
+  has_event 'event';
+  ## or
+  has_events qw( event1 event2 event3 );
+
+Users of your class can now call the "on" method in order to register an event handler:
+
+  $obj->on( event1 => sub { say "I has an event"; } );
+
+And clear their event listeners with:
+
+  $obj->remove_all_listeners( "event1" );
+
+Or add and clear just one listener:
+
+  my $listener = $obj->on( event1 => sub { say "Event here"; } );
+  $obj->remove_listener( event1 => $listener );
+
+You can trigger events from your class with the "emit" method:
+
+  $self->emit( event1 => ( "arg1", "arg2", "argn" ) );
+
+You can remove the has_event and has_events helpers by unimporting MooseX::Event
+
+  no MooseX::event;
+
+=head1 RELATED
+
+=over
+
+=item L<Object::Event>
+=item L<Mixin::Event::Dispatch>
+=item L<Class::Publisher>
+=item L<Event::Notify>
+=item L<Notification::Center>
+=item L<Class::Observable>
+=item L<Reflex::Role::Reactive>
+=item L<Aspect::Library::Listenable>
+=item L<http://nodejs.org/docs/v0.5.4/api/events.html>
+
+=back

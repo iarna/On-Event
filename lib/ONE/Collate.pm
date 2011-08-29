@@ -56,5 +56,8 @@ sub collate {
 
 #sleep(5) ~~ collate { ONE::Timer->after( 5, listener {} ) }
 
+__PACKAGE__->meta->make_immutable();
+no Any::Moose;
+
 
 1;

@@ -1,10 +1,10 @@
 package ONE::Timer;
 # Dist::Zilla: +PodWeaver
-# ABSTRACT: Timer/timeout events for ONE
+# ABSTRACT: Timer/timeout events for MooseX::Event
 use strict;
 use warnings;
 use AnyEvent;
-use ONE;
+use MooseX::Event;
 use Scalar::Util;
 
 =attr our Num|CodeRef $.delay is ro = 0;
@@ -27,11 +27,11 @@ This event takes no arguments.  It's emitted when the event time completes.
 =cut
 has_event 'timeout';
 
-no ONE;
+no MooseX::Event;
 
 =head1 SYNOPSIS
 
-    use ONE::Timer qw( sleep sleep_until );
+    use ONE qw( Timer=sleep:sleep_until );
     
     # After five seconds, say Hi
     ONE::Timer->after( 5, sub { say "Hi!" } );

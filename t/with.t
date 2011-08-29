@@ -6,7 +6,7 @@ BEGIN {
     package TestEvent;
     use strict;
     use warnings;
-    use ONE '-alias' => {
+    use MooseX::Event '-alias' => {
         on => 'listen_on',
         once => 'listen_once',
         emit => 'emit_event',
@@ -19,7 +19,7 @@ BEGIN {
         $self->emit_event( ping => "test" );
     }
 
-    no ONE; 
+    no MooseX::Event; 
     __PACKAGE__->meta->make_immutable();
 }
 

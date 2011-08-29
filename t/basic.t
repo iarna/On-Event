@@ -6,11 +6,11 @@ BEGIN {
     package TestEvent;
     use strict;
     use warnings;
-    use ONE;
+    use MooseX::Event;
 
     has_event 'ping';
 
-    no ONE; 
+    no MooseX::Event; 
     __PACKAGE__->meta->make_immutable();
 }
 

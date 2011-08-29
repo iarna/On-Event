@@ -30,10 +30,6 @@ ONE::Subprocess
 
 rename ONE to ONE::Listenable? MooseX::Event?
 
-rename ONE::Loop -> ONE
-ONE -> singleton class for global event handlers:
-   loop - start the main event loop
-   stop - stops the main event loop, usually the program exits after
    Events:
      idle: AE::idle
      SIG*: AE::signal *

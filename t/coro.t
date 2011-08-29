@@ -12,8 +12,6 @@ else  {
     Test::More->import( tests => 2);
 }
 
-use ONE qw( Timer=sleep );
-
 BEGIN {
     package TestEvent;
     use strict;

@@ -1,5 +1,5 @@
 # ABSTRACT: Make MooseX::Event methods available as class methods on a singleton
-package MooseX::Event::Class;
+package MooseX::Event::Role::ClassMethods;
 use strict;
 use warnings;
 use namespace::autoclean;
@@ -24,21 +24,20 @@ no Any::Moose 'Role';
 
 =head1 SYNOPSIS
 
-  package Example;
-  use common::sense;
-  use MooseX::Singleton;
-  use MooseX::Event;
-  
-  with 'MooseX::Event::Class';
-  
-  has_event 'pinged';
-  
-  sub ping {
-      my $self = shift;
-      $self->emit('pinged');
+  package Example {
+      use MooseX::Singleton;
+      use MooseX::Event;
+      
+      with 'MooseX::Event::Role::ClassMethods';
+      
+      has_event 'pinged';
+      
+      sub ping {
+          my $self = shift;
+          $self->emit('pinged');
+      }
   }
   
-  package main;
   Example->on( pinged => sub { say "Got a ping!" } );
   Example->on( pinged => sub { say "Got another ping!" } );
   Example->ping; # prints "Got a ping!" and "Got another ping!"
@@ -48,6 +47,9 @@ no Any::Moose 'Role';
   my $listener = Example->on( pinged => sub { say "Ping" } );
   Example->remove_listener( pinged => $listener );
   Example->ping(); # Does nothing
+
+=for test_synopsis
+use 5.10.0;
 
 =head1 DESCRIPTION
 
@@ -60,4 +62,4 @@ if you prefer.
 
 =head1 SEE ALSO
 
-MooseX::Event
+MooseX::Event::Role

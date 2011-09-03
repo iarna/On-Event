@@ -1,13 +1,11 @@
 # ABSTRACT: A Node.js style AnyEvent class, using MooseX::Event
 # Dist::Zilla: +PodWeaver
 package ONE;
-use strict;
-use warnings;
 use AnyEvent;
 use ONE::Collate;
 use MooseX::Event;
 
-with 'MooseX::Event::Class';
+with 'MooseX::Event::Role::ClassMethods';
 
 =helper collate { ... }
 

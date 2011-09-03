@@ -1,9 +1,6 @@
 package ONE::Timer;
 # Dist::Zilla: +PodWeaver
 # ABSTRACT: Timer/timeout events for MooseX::Event
-use strict;
-use warnings;
-
 use AnyEvent ();
 use MooseX::Event;
 use Scalar::Util ();

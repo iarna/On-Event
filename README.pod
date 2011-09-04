@@ -1,14 +1,18 @@
-=head1 NAME
+=head1 MOVED
 
-MooseX::Event and ONE
+On::Event has been split and renamed into MooseX::Event and ONE
 
 =head1 DESCRIPTION
+
+=head2 https://github.com/iarna/MooseX-Event
 
 MooseX::Event provides an event framework for Moose classes that is inspired
 by and similar to the one included with Node.js.  It provides class helpers
 to let you declare that you emit named events, methods for you to emit
 events with and methods to allow users of your class to declare event
 listeners.
+
+=head2 https://github.com/iarna/ONE
 
 ONE provides a layer on top of AnyEvent that uses MooseX::Event as it's
 interface.  This gives you an arguably nicer, and definitely more consistant

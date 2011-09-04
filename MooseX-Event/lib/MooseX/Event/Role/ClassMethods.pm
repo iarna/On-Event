@@ -2,7 +2,6 @@
 package MooseX::Event::Role::ClassMethods;
 use strict;
 use warnings;
-use namespace::autoclean;
 use Any::Moose 'Role';
 
 requires 'instance';

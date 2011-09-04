@@ -1,6 +1,8 @@
 Revision history for perl module MooseX::Event
 
 {{$NEXT}}
+
+v0.2.0    2011-09-04
 - Split On::Event into MooseX::Event and ONE
 
 v0.1.1    2011-08-19

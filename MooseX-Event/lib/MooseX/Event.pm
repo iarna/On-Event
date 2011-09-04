@@ -38,16 +38,42 @@ use Any::Moose '::Exporter';
         }
     }
    
-    BEGIN { *unimport = $unimport if defined $unimport }
-    BEGIN { *init_meta = $init_meta if defined $init_meta }
+    sub unimport { goto $unimport; }
+    *init_meta = $init_meta if defined $init_meta;
 }
 
 
-=head1 HELPERS (exported subroutines)
+our @listener_wrappers;
 
-=head2 sub has_event( Array[Str] *@event_names ) is export
+=classmethod our method add_listener_wrapper( CodeRef $wrapper ) returns CodeRef
 
-=head2 sub has_events( Array[Str] *@event_names ) is export
+Wrappers are called in reverse declaration order.  They take a the listener
+to be added as an argument, and return a wrapped listener.
+
+=cut
+
+sub add_listener_wrapper {
+    my( $wrapper ) = @_[1..$#_];
+    push @listener_wrappers, $wrapper;
+    return $wrapper;
+}
+
+=classmethod our method remove_listener_wrapper( CodeRef $wrapper )
+
+Removes a previously added listener wrapper.
+
+=cut
+
+sub remove_listener_wrapper {
+    my( $wrapper ) = @_[1..$#_];
+    @listener_wrappers = grep { $_ != $wrapper } @listener_wrappers;
+    return;
+}
+
+
+=helper sub has_event( Array[Str] *@event_names ) is export
+
+=helper sub has_events( Array[Str] *@event_names ) is export
 
 Registers your class as being able to emit the event names listed.
 

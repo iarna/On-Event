@@ -36,33 +36,6 @@ sub event_exists {
     return $self->can("event:$event");
 }
 
-our @listener_wrappers;
-
-=classmethod our method add_listener_wrapper( CodeRef $wrapper ) returns CodeRef
-
-Wrappers are called in reverse declaration order.  They take a the listener
-to be added as an argument, and return a wrapped listener.
-
-=cut
-
-sub add_listener_wrapper {
-    my( $wrapper ) = @_[1..$#_];
-    push @listener_wrappers, $wrapper;
-    return $wrapper;
-}
-
-=classmethod our method remove_listener_wrapper( CodeRef $wrapper )
-
-Removes a previously added listener wrapper.
-
-=cut
-
-sub remove_listener_wrapper {
-    my( $wrapper ) = @_[1..$#_];
-    @listener_wrappers = grep { $_ != $wrapper } @listener_wrappers;
-    return;
-}
-
 =method our method on( Str $event, CodeRef $listener ) returns CodeRef
 
 Registers $listener as a listener on $event.  When $event is emitted ALL
@@ -85,7 +58,7 @@ sub on {
     }
     my @aliases;
     my $wrapped = $listener;
-    for ( reverse(@wrappers), reverse(@listener_wrappers) ) {
+    for ( reverse(@wrappers), reverse(@MooseX::Event::listener_wrappers) ) {
         push @aliases, 0+$wrapped;
         $wrapped = $_->( $wrapped );
     }

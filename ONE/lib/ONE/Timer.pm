@@ -37,9 +37,7 @@ use Exporter;
 
 our @EXPORT_OK = qw( sleep sleep_until );
 
-=head1 HELPERS
-
-=head2 our sub sleep( Rat $secs ) is export
+=helper our sub sleep( Rat $secs ) is export
 
 Sleep for $secs while allowing events to emit (and Coroutine threads to run)
 
@@ -52,9 +50,7 @@ sub sleep {
     $cv->recv;
 }
 
-=over
-
-=head2 our sub sleep_until( Rat $epochtime ) is export
+=helper our sub sleep_until( Rat $epochtime ) is export
 
 Sleep until $epochtime while allowing events to emit (and Coroutine threads to run)
 
@@ -212,7 +208,7 @@ __PACKAGE__->meta->make_immutable();
 =for test_synopsis
 use v5.10;
 
-=head1 OVERVIEW
+=head1 DESCRIPTION
 
 Trigger events at a specific time or after a specific delay.
 

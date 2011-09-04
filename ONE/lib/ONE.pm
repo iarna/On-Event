@@ -1,33 +1,56 @@
 # ABSTRACT: A Node.js style AnyEvent class, using MooseX::Event
-# Dist::Zilla: +PodWeaver
 package ONE;
 use AnyEvent;
-use ONE::Collate;
+use ONE::Collect;
 use MooseX::Event;
 
 with 'MooseX::Event::Role::ClassMethods';
 
-=helper collate { ... }
+=helper collect { ... }
 
-Will return after all of the events declared inside the collate block have
+Will return after all of the events declared inside the collect block have
 been emitted at least once.
 
 =cut
 
-sub collate (&) {
-    my $collater = ONE::Collate->new();
+sub collect (&) {
+    my $collect = ONE::Collect->new();
     my $wrapper = MooseX::Event->add_listener_wrapper( sub {
         my( $todo ) = @_;
-        $collater->listener( $todo );
+        $collect->listener( $todo );
     } );
     $_[0]->();
     MooseX::Event->remove_listener_wrapper( $wrapper );
-    $collater->collate;
+    $collect->complete;
 }
 
 has '_loop_cv' => (is=>'rw', init_arg=>undef);
 has '_idle_cv' => (is=>'rw', init_arg=>undef );
 has '_signal'  => (is=>'rw', default=>sub{{}}, init_arg=>undef);
+
+=event idle
+
+This is an AnyEvent idle watcher.  It will repeatedly invoke the listener
+whenever the process is idle.  Several thousand times per second on a
+moderately loaded system.  Attaching a once listener to this will let you
+defer code until any active events have finished processing. 
+              
+=cut
+
+=event SIG*
+
+You can register event listeners for any of the following events:
+
+    SIGHUP   SIGINT  SIGQUIT SIGILL  SIGTRAP SIGABRT SIGBUS    SIGFPE    SIGKILL
+    SIGUSR1  SIGSEGV SIGUSR2 SIGPIPE SIGALRM SIGTERM SIGSTKFLT SIGCHLD   SIGCONT
+    SIGSTOP  SIGTSTP SIGTTIN SIGTTOU SIGURG  SIGXCPU SIGXFSZ   SIGVTALRM SIGPROF
+    SIGWINCH SIGIO   SIGPWR  SIGSYS
+
+Some of these may not actually be catchable (ie, SIGKILL), this is just the
+list from "kill -l" on a modern Linux system.  Using one of these installs
+any AnyEvent signal watcher.  As with AnyEvent, this will work
+
+=cut
 
 has_events qw(
     idle 
@@ -36,6 +59,13 @@ has_events qw(
     SIGSTOP  SIGTSTP SIGTTIN SIGTTOU SIGURG  SIGXCPU SIGXFSZ   SIGVTALRM SIGPROF
     SIGWINCH SIGIO   SIGPWR  SIGSYS );
 
+
+
+=classmethod our method instance() returns ONE
+
+Return the singleton object for this class
+
+=cut
 
 # We would just use MooseX::Singleton, but it's nice to maintain compatibility with Mouse
 BEGIN {
@@ -55,8 +85,6 @@ This method is called by MooseX::Event when the first event listener for a
 particular event is registered.  We use this to start the AE::idle or
 AE::signal event listeners.  We wouldn't want them running when the user has
 no active listeners.
-
-=done
 
 =cut
 
@@ -79,8 +107,6 @@ sub activate_event {
 This method is called by MooseX::Event when the last event listener for a
 particular event is removed.  We use this to shutdown the AE::idle or
 AE::signal event listeners when the last acitve listener is removed.
-
-=done
 
 =cut
 
@@ -150,23 +176,21 @@ sub import {
     }
     
     no strict 'refs';
-    *{$caller.'::collate'} = $class->can('collate');
+    *{$caller.'::collect'} = $class->can('collect');
 }
 
 =for internal
 
 =head1 our method unimport()
 
-Removes the collate helper method
-
-=done
+Removes the collect helper method
 
 =cut
 
 sub unimport {
     my $caller = caller;
     no strict 'refs';
-    delete ${$caller.'::'}{'collate'};
+    delete ${$caller.'::'}{'collect'};
 }
 
 __PACKAGE__->meta->make_immutable();
@@ -178,22 +202,24 @@ no MooseX::Event;
 
 =head1 SYNOPSIS
 
-General event loop:
+# General event loop:
 
     use ONE;
     
     ONE->start;
 
-Collation:
+# Collation:
+
+    use ONE;
     use ONE::Timer;
     
-    collate {
+    collect {
          ONE::Timer->after( 2 => sub { say "two" } );
          ONE::Timer->after( 3 => sub { say "three" } );
     }; # After three seconds will have printed "two" and "three"
 
 =for test_synopsis
-use v5.10;
+use v5.10.0;
 
 =head1 DESCRIPTION
 

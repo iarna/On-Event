@@ -1,4 +1,5 @@
-package ONE::Collate;
+# ABSTRACT: Collect 
+package ONE::Collect;
 use strict;
 use warnings;
 use AnyEvent;
@@ -8,8 +9,7 @@ has '_cv' => (isa=>'AnyEvent::CondVar', is=>'rw');
 
 =method our listener( CodeRef $todo )
 
-Capture the $todo listener, such that collate will trigger when this and all
-other listeners trigger.
+This wraps the $todo listener for later use by the complete method.
 
 =cut
 
@@ -26,8 +26,7 @@ sub listener {
     # Begin processing
     $cv->begin;
 
-    
-    # Here we wrap the event listener and,a fter the first call, remove
+    # Here we wrap the event listener and, after the first call, remove ourselves
     my $wrapped;
     $wrapped = sub { 
         my $self = shift;
@@ -41,23 +40,24 @@ sub listener {
 }
 
 
-=method our collate()
+=method our complete()
 
-Wait for all of the captured events to trigger at least once.
+Wait until all of the wrapped events have triggered at least once.
 
 =cut
 
-sub collate {
+sub complete {
     my $self = shift;
     return unless defined $self->_cv;
     $self->_cv->wait;
 }
 
 
-#sleep(5) ~~ collate { ONE::Timer->after( 5, listener {} ) }
-
 __PACKAGE__->meta->make_immutable();
 no Any::Moose;
 
 
 1;
+
+=head1 DESCRIPTION
+

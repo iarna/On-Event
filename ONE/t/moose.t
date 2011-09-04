@@ -1,7 +1,15 @@
 use strict;
 use warnings;
-use Test::More tests => 5;
-use Moose; # Force Any::Moose to use Moose instead of Mouse
+BEGIN {
+    eval q{ require Moose }; # Force Any::Moose to use Moose instead of Mouse
+    if ($@) {
+        eval q{ use Test::More skip_all => "Can't do Moose tests without Moose" };
+        exit;
+    }
+    else {
+        eval q{ use Test::More tests => 5 };
+    }
+}
 use ONE qw( Timer=sleep:sleep_until );
 
 my $after_test;

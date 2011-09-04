@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 3;
+use Test::More tests => 4;
 use ONE qw( Timer=sleep );
 
 my $ii = 0;
@@ -27,3 +27,13 @@ sleep 1.1;
 alarm(0);
 
 is( $alarm, 1, "The alarm signal triggered" );
+
+my $cnt = 0;
+
+collect {
+    ONE::Timer->every( 0.2 => sub { $cnt ++ } );
+    ONE::Timer->every( 0.5 => sub { $cnt += 10 } );
+};
+is( $cnt, 12, "We collected three event triggers of the right kinds" );
+
+done_testing( 4 );
